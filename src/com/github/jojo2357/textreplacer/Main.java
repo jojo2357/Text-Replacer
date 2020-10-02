@@ -1,7 +1,6 @@
 package com.github.jojo2357.textreplacer;
 
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.Arrays;
@@ -53,8 +52,9 @@ public class Main {
     private static int findFilesAndReplace(String absolutePath, String find, String replace, String filter, boolean regex) {
         File thisFolder = new File(absolutePath);
         String[] directories = thisFolder.list((current, name) -> new File(current, name).isDirectory());
+        int resultOfCall = 0;
         for (String str : Objects.requireNonNull(directories)) {
-            findFilesAndReplace(absolutePath + "/" + str, find, replace, filter, regex);
+            resultOfCall = findFilesAndReplace(absolutePath + "/" + str, find, replace, filter, regex);
         }
         System.gc();
         File[] files = Arrays.stream(Objects.requireNonNull(thisFolder.list((current, name) -> !new File(current, name).isDirectory() && (filter.isEmpty() || name.endsWith(filter)))))
@@ -65,26 +65,11 @@ public class Main {
             replaceText(file, find, replace, regex);
             filesInspected++;
         }
-        return filesInspected;
+        return filesInspected + resultOfCall;
     }
 
     private static void replaceText(File file, String find, String replace, boolean regex) {
         int changesMade = 0;
-        Pair<Boolean, String> result = doesFileContain(file, find, replace, regex);
-        if (result.getFirst()) {
-            String fileText = result.getSecond().replaceAll(find, replace);
-            try {
-                try (FileWriter outWriter = new FileWriter(file)) {
-                    outWriter.append(fileText);
-                }
-            } catch (IOException exception) {
-                System.err.println("IOException during writing to file: " + exception);
-            }
-            System.out.println(file.getAbsolutePath() + " : " + (++changesMade));
-        }
-    }
-
-    private static Pair<Boolean, String> doesFileContain(File file, String find, String replace, boolean regex) {
         try {
             StringBuilder fileText = new StringBuilder();
             try (Scanner reader = new Scanner(file)) {
@@ -95,10 +80,13 @@ public class Main {
             boolean returnVal = regex ? Pattern.compile(find).matcher(fileText.toString()).find() : fileText.toString().contains(find);
             System.out.println(find + " " + replace + " " + returnVal);
             System.out.println(fileText);
-            return new Pair<>(returnVal, fileText.toString());
-        } catch (FileNotFoundException exception) {
-            System.err.println("File " + file.getAbsolutePath() + " does not exist!");
-            return new Pair<>(false, "");
+            String newFileText = fileText.toString().replaceAll(find, replace);
+            try (FileWriter outWriter = new FileWriter(file)) {
+                outWriter.append(newFileText);
+            }
+            System.out.println(file.getAbsolutePath() + " : " + (++changesMade));
+        } catch (IOException exception) {
+            System.err.println("IOException during writing to file: " + exception);
         }
     }
 }
